@@ -1,0 +1,73 @@
+:root {
+  --ink: #12202e;
+  --muted: #4a5d70;
+  --paper: #f3efe6;
+  --accent: #0d6e6e;
+  --glow: rgba(13, 110, 110, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(900px 420px at 12% -10%, var(--glow), transparent 60%),
+    radial-gradient(700px 380px at 90% 0%, rgba(196, 140, 74, 0.16), transparent 55%),
+    linear-gradient(165deg, #f7f4ee 0%, var(--paper) 45%, #e8eef2 100%);
+}
+
+.stage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2rem, 6vw, 4.5rem);
+  max-width: 42rem;
+}
+
+.brand {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  color: var(--accent);
+  font-weight: 650;
+}
+
+h1 {
+  margin: 0 0 0.85rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.lead {
+  margin: 0 0 1.5rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.lead code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.95em;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.12em 0.4em;
+  border-radius: 0.3em;
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
