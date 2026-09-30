@@ -4,28 +4,108 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>liwua · liwua.qzz.io</title>
-  <meta name="description" content="liwua 的个人主页" />
+  <meta name="description" content="liwua 的个人主页 — 用动画讲述在场感" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="atmosphere" aria-hidden="true">
-    <span class="orb orb-a"></span>
-    <span class="orb orb-b"></span>
-    <span class="orb orb-c"></span>
-    <span class="grain"></span>
+  <div class="bg-plane" aria-hidden="true">
+    <div class="mesh"></div>
+    <div class="noise"></div>
   </div>
-  <div class="pointer-glow" aria-hidden="true"></div>
 
-  <main class="stage">
-    <p class="brand reveal" style="--d: 0ms">liwua</p>
-    <h1 class="reveal" style="--d: 120ms">你好，这里是我的小站</h1>
-    <p class="lead reveal" style="--d: 240ms">托管在 Cloudflare Pages，域名 <code>liwua.qzz.io</code></p>
-    <p class="meta reveal" style="--d: 360ms">从 GitHub 自动部署 · 无需自有服务器</p>
+  <header class="top">
+    <a class="logo" href="/">liwua</a>
+    <a class="top-link" href="https://github.com/liwuaa/liwua-site" target="_blank" rel="noreferrer">GitHub</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow" data-reveal>personal site</p>
+        <h1 class="brand" data-reveal>liwua</h1>
+        <p class="tagline" data-reveal>用节奏与线条搭一座小站，像动画一样呼吸。</p>
+        <div class="cta" data-reveal>
+          <a class="btn primary" href="#playground">看动效</a>
+          <a class="btn ghost" href="https://liwua-site.pages.dev" target="_blank" rel="noreferrer">Pages 备用入口</a>
+        </div>
+      </div>
+
+      <div class="hero-stage" aria-hidden="true">
+        <div class="dot-grid" id="dotGrid"></div>
+        <div class="floaters" id="floaters">
+          <span class="shape square"></span>
+          <span class="shape circle"></span>
+          <span class="shape diamond"></span>
+          <span class="shape bar"></span>
+          <span class="shape pill"></span>
+          <span class="shape ring"></span>
+        </div>
+        <svg class="stroke-art" viewBox="0 0 320 220" fill="none">
+          <path
+            id="drawPath"
+            class="drawable"
+            d="M24 160 C70 40, 120 200, 168 88 S260 40, 296 128"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+    </section>
+
+    <section class="playground" id="playground">
+      <div class="section-head">
+        <h2 data-reveal>动效沙盒</h2>
+        <p data-reveal>参考 animejs.com 的节奏：交错、混合变换、路径描边。</p>
+      </div>
+
+      <div class="panels">
+        <article class="panel" data-reveal>
+          <div class="panel-visual">
+            <div class="clock" id="clock">
+              <span class="tick"></span><span class="tick"></span><span class="tick"></span>
+              <span class="tick"></span><span class="tick"></span><span class="tick"></span>
+              <span class="tick"></span><span class="tick"></span><span class="tick"></span>
+              <span class="tick"></span><span class="tick"></span><span class="tick"></span>
+              <span class="hand"></span>
+            </div>
+          </div>
+          <h3>Timeline</h3>
+          <p>多段动画按时间轴咬合，像节拍器一样走时。</p>
+        </article>
+
+        <article class="panel" data-reveal>
+          <div class="panel-visual">
+            <button class="spring-ball" id="springBall" type="button" aria-label="拖拽或点击弹球">拖我</button>
+          </div>
+          <h3>Spring</h3>
+          <p>松手回弹，带着一点惯性与柔软的阻尼。</p>
+        </article>
+
+        <article class="panel" data-reveal>
+          <div class="panel-visual wide">
+            <svg class="wave" viewBox="0 0 360 120" fill="none">
+              <path
+                id="wavePath"
+                class="drawable"
+                d="M12 60 C48 20, 84 100, 120 60 S192 20, 228 60 S300 100, 348 60"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <h3>SVG draw</h3>
+          <p>线条被一点点画出来，滚动进入时重新描一遍。</p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p>liwua · <a href="https://liwua.qzz.io">liwua.qzz.io</a> · Cloudflare Pages</p>
+    </footer>
   </main>
 
-  <script src="motion.js"></script>
+  <script type="module" src="motion.js"></script>
 </body>
 </html>

@@ -1,17 +1,20 @@
 # liwua-site
 
-个人主页静态站，通过 Cloudflare Pages 部署，绑定域名 `liwua.qzz.io`。
+个人主页，托管于 Cloudflare Pages。
+
+- 站点：https://liwua.qzz.io
+- 备用：https://liwua-site.pages.dev
+- 动效：anime.js（参考 [animejs.com](https://animejs.com) 的交错、路径描边与弹性交互）
 
 ## 本地预览
 
-用浏览器直接打开 `index.html`，或任意静态服务器：
+用任意静态服务器打开根目录即可，例如：
 
 ```bash
-npx --yes serve .
+npx serve .
 ```
 
 ## 部署
 
-1. 推送到 GitHub 仓库 `liwuaa/liwua-site`
-2. 在 Cloudflare Pages 连接该仓库，构建命令留空，输出目录为 `/`
-3. 绑定自定义域名 `liwua.qzz.io`
+推送到 `main` 后，在 Cloudflare Pages 已连接 Git 的情况下会自动部署。
+若项目仍显示 **No Git connection**，需在 Pages 设置里连接 GitHub 仓库 `liwuaa/liwua-site`。
