@@ -199,6 +199,7 @@ main {
   background: var(--ink);
   opacity: 0.18;
   transform-origin: center;
+  transition: transform 0.14s ease-out, opacity 0.14s ease-out;
 }
 
 .floaters {
@@ -206,6 +207,7 @@ main {
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  will-change: transform;
 }
 
 .shape {
@@ -329,6 +331,22 @@ main {
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--line);
   backdrop-filter: blur(8px);
+  transition: transform 0.32s var(--ease-out), box-shadow 0.32s ease, background 0.32s ease;
+}
+
+.panel:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 20, 26, 0.16),
+    0 20px 44px rgba(18, 20, 26, 0.1);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 999px;
 }
 
 .panel h3 {
@@ -431,6 +449,13 @@ main {
 .wave .drawable {
   stroke: var(--blue);
   stroke-width: 4;
+  stroke-dasharray: var(--wave-len, 1000) var(--wave-len, 1000);
+  stroke-dashoffset: var(--wave-len, 1000);
+}
+
+.wave.wave-in .drawable {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .foot {
