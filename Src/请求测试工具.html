@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>请求测试工具</title>
+    <style>
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+        }
+
+        /* 标签样式 */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            position: relative;
+            transition: color 0.3s;
+        }
+        .tab-btn.active {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #2c3e50;
+        }
+        .tab-btn:hover {
+            color: #2c3e50;
+            background-color: #f5f5f5;
+        }
+
+        /* 内容区域样式 */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        h2 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+        @media (min-width: 768px) {
+            .input-wrapper {
+                flex-direction: row;
+            }
+            textarea, input[type="text"] {
+                flex: 1;
+            }
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #34495e;
+        }
+        .format-btn {
+            background-color: #3498db;
+            align-self: flex-start;
+            white-space: nowrap;
+        }
+        .format-btn:hover {
+            background-color: #2980b9;
+        }
+        .detail-title {
+            font-weight: bold;
+            margin: 15px 0 8px;
+            color: #2c3e50;
+        }
+        .detail-content {
+            padding: 12px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            white-space: pre-wrap;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        .success {
+            color: #27ae60;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: "Consolas", monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input[type="text"] {
+            min-height: auto;
+            height: 40px;
+        }
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .error-hint {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 标签切换区域 -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('post')">POST请求</button>
+            <button class="tab-btn" onclick="switchTab('get')">GET请求</button>
+        </div>
+
+        <!-- POST请求内容 -->
+        <div id="post" class="tab-content active">
+            <div class="section">
+                <h2>请求配置</h2>
+                <div class="control-group">
+                    <label class="input-label">请求URL</label>
+                    <input type="text" id="postUrl" placeholder="输入请求URL" value="/api/IntegrationDigitalTwin/GetDigitalAllData">
+                </div>
+                <div class="control-group">
+                    <label class="input-label">请求头 (JSON格式)</label>
+                    <div class="input-wrapper">
+                        <textarea id="postHeaders" placeholder='例如: {"Content-Type": "application/json", "Authorization": "Bearer token"}'>{"Content-Type": "application/json"}</textarea>
+                        <button class="format-btn" onclick="formatJson('postHeaders', 'postHeadersError')">格式化JSON</button>
+                    </div>
+                    <div class="error-hint" id="postHeadersError"></div>
+                </div>
+                <div class="control-group">
+                    <label class="input-label">请求体 (JSON格式)</label>
+                    <div class="input-wrapper">
+                        <textarea id="postBody" placeholder='例如: {"id": 1, "name": "test"}'>{}</textarea>
+                        <button class="format-btn" onclick="formatJson('postBody', 'postBodyError')">格式化JSON</button>
+                    </div>
+                    <div class="error-hint" id="postBodyError"></div>
+                </div>
+                <button onclick="sendPostRequest()">发送POST请求</button>
+            </div>
+
+            <div class="section">
+                <h2>请求详情</h2>
+                <div>
+                    <div class="detail-title">URL:</div>
+                    <div class="detail-content" id="postDisplayUrl">未发送请求</div>
+                </div>
+                <div>
+                    <div class="detail-title">请求头:</div>
+                    <div class="detail-content" id="postDisplayHeaders">未发送请求</div>
+                </div>
+                <div>
+                    <div class="detail-title">请求体:</div>
+                    <div class="detail-content" id="postDisplayBody">未发送请求</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>响应结果</h2>
+                <div class="detail-content result" id="postResponseResult">未发送请求</div>
+            </div>
+        </div>
+
+        <!-- GET请求内容 -->
+        <div id="get" class="tab-content">
+            <div class="section">
+                <h2>请求配置</h2>
+                <div class="control-group">
+                    <label class="input-label">请求URL</label>
+                    <a>使用 ? 分隔路径和参数，多个参数之间用 & 连接</a>
+                    <input type="text" id="getUrl" placeholder="输入请求URL" value="/api/IntegrationDigitalTwin/GetDigitalAllData">
+                </div>
+                <div class="control-group">
+                    <label class="input-label">请求头 (JSON格式)</label>
+                    <div class="input-wrapper">
+                        <textarea id="getHeaders" placeholder='例如: {"Authorization": "Bearer token"}'>{"Content-Type": "application/json"}</textarea>
+                        <button class="format-btn" onclick="formatJson('getHeaders', 'getHeadersError')">格式化JSON</button>
+                    </div>
+                    <div class="error-hint" id="getHeadersError"></div>
+                </div>
+                <button onclick="sendGetRequest()">发送GET请求</button>
+            </div>
+
+            <div class="section">
+                <h2>请求详情</h2>
+                <div>
+                    <div class="detail-title">URL:</div>
+                    <div class="detail-content" id="getDisplayUrl">未发送请求</div>
+                </div>
+                <div>
+                    <div class="detail-title">请求头:</div>
+                    <div class="detail-content" id="getDisplayHeaders">未发送请求</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>响应结果</h2>
+                <div class="detail-content result" id="getResponseResult">未发送请求</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 标签切换功能
+        function switchTab(tabId) {
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            // 移除所有标签按钮的激活状态
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active');
+            });
+            // 显示当前标签内容并激活按钮
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+
+        // 格式化JSON函数
+        function formatJson(elementId, errorId) {
+            const textarea = document.getElementById(elementId);
+            const errorElement = document.getElementById(errorId);
+            const jsonText = textarea.value.trim();
+
+            errorElement.textContent = '';
+
+            if (!jsonText) {
+                errorElement.textContent = 'JSON内容不能为空';
+                return;
+            }
+
+            try {
+                const jsonObj = JSON.parse(jsonText);
+                const formattedJson = JSON.stringify(jsonObj, null, 2);
+                textarea.value = formattedJson;
+            } catch (error) {
+                errorElement.textContent = `JSON格式错误: ${error.message}`;
+            }
+        }
+
+        // 发送POST请求
+        function sendPostRequest() {
+            document.getElementById('postHeadersError').textContent = '';
+            document.getElementById('postBodyError').textContent = '';
+
+            const urlInput = document.getElementById('postUrl');
+            const headersInput = document.getElementById('postHeaders');
+            const bodyInput = document.getElementById('postBody');
+            
+            const displayUrl = document.getElementById('postDisplayUrl');
+            const displayHeaders = document.getElementById('postDisplayHeaders');
+            const displayBody = document.getElementById('postDisplayBody');
+            const responseResult = document.getElementById('postResponseResult');
+
+            try {
+                const url = urlInput.value.trim() || '/api/IntegrationDigitalTwin/GetDigitalAllData';
+                const headers = JSON.parse(headersInput.value.trim() || '{"Content-Type": "application/json"}');
+                const body = JSON.parse(bodyInput.value.trim() || '{}');
+
+                displayUrl.textContent = url;
+                displayHeaders.textContent = JSON.stringify(headers, null, 2);
+                displayBody.textContent = JSON.stringify(body, null, 2);
+
+                responseResult.className = 'detail-content result';
+                responseResult.textContent = '请求发送中...';
+
+                const requestOptions = {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                };
+
+                fetch(url, requestOptions)
+                    .then(response => {
+                        return response.text().then(text => {
+                            try {
+                                return { status: response.status, data: JSON.parse(text), isJson: true };
+                            } catch {
+                                return { status: response.status, data: text, isJson: false };
+                            }
+                        });
+                    })
+                    .then(response => {
+                        responseResult.className = 'detail-content result success';
+                        const resultText = `状态码: ${response.status}\n响应内容:\n${
+                            response.isJson ? JSON.stringify(response.data, null, 2) : response.data
+                        }`;
+                        responseResult.textContent = resultText;
+                    })
+                    .catch(error => {
+                        responseResult.className = 'detail-content result error';
+                        responseResult.textContent = `请求失败: ${error.message}`;
+                    });
+
+            } catch (error) {
+                responseResult.className = 'detail-content result error';
+                responseResult.textContent = `参数格式错误: ${error.message}\n请检查请求头或请求体的JSON格式`;
+            }
+        }
+
+        // 发送GET请求
+        function sendGetRequest() {
+            document.getElementById('getHeadersError').textContent = '';
+
+            const urlInput = document.getElementById('getUrl');
+            const headersInput = document.getElementById('getHeaders');
+            
+            const displayUrl = document.getElementById('getDisplayUrl');
+            const displayHeaders = document.getElementById('getDisplayHeaders');
+            const responseResult = document.getElementById('getResponseResult');
+
+            try {
+                const url = urlInput.value.trim() || '/api/IntegrationDigitalTwin/GetDigitalAllData';
+                const headers = JSON.parse(headersInput.value.trim() || '{"Content-Type": "application/json"}');
+
+                displayUrl.textContent = url;
+                displayHeaders.textContent = JSON.stringify(headers, null, 2);
+
+                responseResult.className = 'detail-content result';
+                responseResult.textContent = '请求发送中...';
+
+                const requestOptions = {
+                    method: 'GET',
+                    headers: headers
+                };
+
+                fetch(url, requestOptions)
+                    .then(response => {
+                        return response.text().then(text => {
+                            try {
+                                return { status: response.status, data: JSON.parse(text), isJson: true };
+                            } catch {
+                                return { status: response.status, data: text, isJson: false };
+                            }
+                        });
+                    })
+                    .then(response => {
+                        responseResult.className = 'detail-content result success';
+                        const resultText = `状态码: ${response.status}\n响应内容:\n${
+                            response.isJson ? JSON.stringify(response.data, null, 2) : response.data
+                        }`;
+                        responseResult.textContent = resultText;
+                    })
+                    .catch(error => {
+                        responseResult.className = 'detail-content result error';
+                        responseResult.textContent = `请求失败: ${error.message}`;
+                    });
+
+            } catch (error) {
+                responseResult.className = 'detail-content result error';
+                responseResult.textContent = `参数格式错误: ${error.message}\n请检查请求头的JSON格式`;
+            }
+        }
+    </script>
+</body>
+</html>
