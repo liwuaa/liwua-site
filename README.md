@@ -5,7 +5,7 @@
 - 站点：https://liwua.qzz.io
 - 备用：https://liwua-site.pages.dev
 - 动效：anime.js（参考 [animejs.com](https://animejs.com) 的交错、路径描边与弹性交互）
-- 基于NoStr的去中心化群组聊天：[https://liwua.qzz.io/Src/Nostr Chat Client.html](https://liwua.qzz.io/Src/Nostr Chat Client.html)
+- 基于NoStr的去中心化群组聊天：[Nostr Chat Client](https://liwua.qzz.io/Src/Nostr%20Chat%20Client.html)
 - HTTP请求测试工具：https://liwua.qzz.io/Src/请求测试工具.html
   
 
