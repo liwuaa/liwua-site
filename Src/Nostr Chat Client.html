@@ -2,62 +2,74 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <style>
+    body { height: 100vh; height: 100dvh; }
+    @media (max-width: 767px) {
+      #sidebar {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        width: 100%;
+        background: #0f172a;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+      }
+      #sidebar.open { transform: translateX(0); }
+      #relay-list, #channel-list { max-height: 28vh; }
+      input, textarea, select { font-size: 16px; }
+    }
+  </style>
   <title>Nostr 群组与单人订阅聊天客户端</title>
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome 图标库 CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- nostr-tools 稳定版 CDN -->
   <script src="https://unpkg.com/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-900 text-slate-100 font-sans h-dvh flex flex-col overflow-hidden">
 
-  <!-- 顶栏 -->
-  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center shrink-0">
-    <div class="flex items-center gap-3">
-      <div class="bg-purple-600 p-2 rounded-lg text-white">
+  <header class="bg-slate-800 border-b border-slate-700 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-3 shrink-0">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="bg-purple-600 p-2 rounded-lg text-white shrink-0">
         <i class="fa-solid fa-comments text-xl"></i>
       </div>
-      <div>
-        <h1 class="font-bold text-lg leading-tight">Nostr Chat Client</h1>
-        <p class="text-xs text-slate-400" id="relay-status-text">Relay: 未连接 (请选择服务器并连接)</p>
+      <div class="min-w-0">
+        <h1 class="font-bold text-lg leading-tight whitespace-nowrap hidden sm:block">Nostr Chat Client</h1>
+        <p class="text-xs text-slate-400 truncate" id="relay-status-text">Relay: 未连接 (请选择服务器并连接)</p>
       </div>
     </div>
-    
-    <!-- 身份卡片/公钥展示 -->
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-3 bg-slate-900/60 border border-slate-700 px-3 py-1.5 rounded-full text-xs">
-        <span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-500" id="status-indicator"></span>
-        <span class="text-slate-400">我的公钥 (npub):</span>
-        <span class="font-mono text-purple-400 font-medium" id="my-pubkey-display">加载中...</span>
-        <button onclick="copyPubKey()" title="复制公钥" class="hover:text-white text-slate-400 ml-1">
+
+    <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div class="flex items-center gap-2 sm:gap-3 bg-slate-900/60 border border-slate-700 px-3 py-1.5 rounded-full text-xs max-w-[46vw] sm:max-w-none">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0" id="status-indicator"></span>
+        <span class="text-slate-400 hidden sm:inline">我的公钥 (npub):</span>
+        <span class="font-mono text-purple-400 font-medium truncate" id="my-pubkey-display">加载中...</span>
+        <button type="button" id="btn-copy-npub" title="复制公钥" class="hover:text-white text-slate-400 shrink-0">
           <i class="fa-regular fa-copy"></i>
         </button>
       </div>
-      <button onclick="openConfigPage()" title="身份与密钥配置" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-1.5 rounded-full text-xs flex items-center gap-2 transition">
+      <button type="button" id="btn-open-config" title="身份与密钥配置" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-1.5 rounded-full text-xs flex items-center gap-2 transition">
         <i class="fa-solid fa-gear"></i>
-        <span>配置</span>
+        <span class="hidden sm:inline">配置</span>
       </button>
     </div>
   </header>
 
-  <!-- 主体区域 -->
-  <div class="flex flex-1 overflow-hidden">
-    
-    <!-- 左侧边栏 -->
-    <aside class="w-80 bg-slate-800/60 border-r border-slate-700 p-4 flex flex-col gap-4 shrink-0 overflow-y-auto">
-      
-      <!-- Relay 服务器列表 -->
+  <div class="flex flex-1 overflow-hidden min-h-0">
+    <aside id="sidebar" class="w-80 bg-slate-800/60 border-r border-slate-700 p-4 flex flex-col gap-4 shrink-0 overflow-y-auto">
+      <div class="md:hidden flex items-center justify-between">
+        <span class="text-sm font-medium text-slate-200">服务器与频道</span>
+        <button type="button" id="btn-close-sidebar" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-1.5 rounded-lg text-xs">返回聊天</button>
+      </div>
+
       <div>
         <div class="flex justify-between items-center mb-2">
           <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">服务器列表</h2>
-          <button onclick="reconnectRelay()" class="bg-purple-600 hover:bg-purple-500 px-2.5 py-1 rounded text-[11px] font-medium transition text-white">连接</button>
+          <button type="button" id="btn-connect" class="bg-purple-600 hover:bg-purple-500 px-2.5 py-1 rounded text-[11px] font-medium transition text-white">连接</button>
         </div>
         <div id="relay-list" class="space-y-1 mb-2 max-h-40 overflow-y-auto"></div>
         <div class="flex gap-2">
-          <input type="text" id="new-relay-input" placeholder="wss://新服务器地址" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs flex-1 text-slate-200 focus:outline-none focus:border-purple-500">
-          <button onclick="addRelay()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs font-medium text-slate-200 transition">添加</button>
+          <input type="text" id="new-relay-input" placeholder="wss://新服务器地址" autocomplete="off" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs flex-1 text-slate-200 focus:outline-none focus:border-purple-500">
+          <button type="button" id="btn-add-relay" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs font-medium text-slate-200 transition">添加</button>
         </div>
         <p class="text-[11px] text-slate-500 mt-1.5 leading-tight">
           当前选中：<code id="current-relay-label" class="text-slate-400">—</code>
@@ -66,83 +78,76 @@
 
       <hr class="border-slate-700">
 
-      <!-- 频道加入与切换 -->
       <div>
         <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">加入或切换频道</h2>
         <div class="flex gap-2 mb-2">
-          <input type="text" id="new-channel-input" placeholder="输入频道名称 (例如: chat1)" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs flex-1 text-slate-200 focus:outline-none focus:border-purple-500">
-          <button onclick="joinOrSwitchChannel()" class="bg-purple-600 hover:bg-purple-500 px-3 py-1.5 rounded text-xs font-medium text-white transition">加入</button>
+          <input type="text" id="new-channel-input" placeholder="输入频道名称 (例如: chat1)" autocomplete="off" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs flex-1 text-slate-200 focus:outline-none focus:border-purple-500">
+          <button type="button" id="btn-join-channel" class="bg-purple-600 hover:bg-purple-500 px-3 py-1.5 rounded text-xs font-medium text-white transition">加入</button>
         </div>
         <div id="channel-list" class="space-y-1 max-h-32 overflow-y-auto"></div>
       </div>
 
       <hr class="border-slate-700">
 
-      <!-- 订阅单人 / 公钥过滤 -->
-      <div class="flex-1 flex flex-col">
+      <div class="flex-1 flex flex-col min-h-0">
         <div class="flex justify-between items-center mb-1">
           <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">订阅单人 / 过滤</h2>
           <span class="text-xs text-slate-500" id="follow-count">0 人</span>
         </div>
         <p class="text-[11px] text-slate-400 mb-2">输入好友 npub 或 Hex 公钥，只收特定人的消息（留空则收频道所有人）。</p>
         <div class="flex gap-2 mb-2">
-          <input type="text" id="single-pubkey-input" placeholder="npub1... 或 64位公钥" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs flex-1 text-slate-200 focus:outline-none focus:border-purple-500">
-          <button onclick="addSubKey()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs font-medium text-slate-200 transition">添加</button>
+          <input type="text" id="single-pubkey-input" placeholder="npub1... 或 64位公钥" autocomplete="off" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs flex-1 text-slate-200 focus:outline-none focus:border-purple-500">
+          <button type="button" id="btn-add-follow" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs font-medium text-slate-200 transition">添加</button>
         </div>
-        <div id="following-list" class="flex-1 overflow-y-auto space-y-1 bg-slate-900/40 p-2 rounded border border-slate-700/50 text-xs font-mono text-slate-400 min-h-[80px]">
-          <p class="text-slate-500 italic text-center py-2">未限制单人（接收频道全员）</p>
-        </div>
+        <div id="following-list" class="flex-1 overflow-y-auto space-y-1 bg-slate-900/40 p-2 rounded border border-slate-700/50 text-xs font-mono text-slate-400 min-h-[80px]"></div>
       </div>
     </aside>
 
-    <!-- 右侧聊天区 -->
-    <main class="flex-1 flex flex-col bg-slate-900">
-      
-      <!-- 频道 Header -->
-      <div class="px-6 py-3 bg-slate-800/40 border-b border-slate-700/60 flex justify-between items-center shrink-0">
-        <div>
-          <span class="text-sm font-bold text-slate-200" id="current-channel-title">未选择频道</span>
-          <span class="text-xs text-slate-500 ml-2 font-mono" id="current-channel-tag"></span>
+    <main class="flex-1 flex flex-col bg-slate-900 min-w-0">
+      <div class="px-3 sm:px-6 py-3 bg-slate-800/40 border-b border-slate-700/60 flex justify-between items-center gap-2 shrink-0">
+        <div class="min-w-0 flex items-center gap-2">
+          <button type="button" id="btn-open-sidebar" title="服务器与频道" class="md:hidden shrink-0 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-2.5 py-1.5 rounded-lg text-xs text-slate-200">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="min-w-0">
+            <span class="text-sm font-bold text-slate-200" id="current-channel-title">未选择频道</span>
+            <span class="text-xs text-slate-500 ml-2 font-mono hidden sm:inline" id="current-channel-tag"></span>
+          </div>
         </div>
-        <div class="text-xs text-slate-400">
-          过滤模式：<span id="filter-mode-text" class="text-purple-400 font-medium">频道公开消息</span>
+        <div class="text-xs text-slate-400 shrink min-w-0 text-right">
+          <span class="hidden sm:inline">过滤模式：</span><span id="filter-mode-text" class="text-purple-400 font-medium">频道公开消息</span>
         </div>
       </div>
 
-      <!-- 消息列表 -->
-      <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
-        <p class="text-slate-500 text-center py-10 text-sm">请先选择左侧服务器并点击“连接”，再加入频道...</p>
-      </div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
 
-      <!-- 底部输入框 -->
-      <div class="p-4 bg-slate-800/80 border-t border-slate-700 shrink-0">
-        <form onsubmit="sendMessage(event)" class="flex gap-3">
-          <input type="text" id="message-input" placeholder="输入消息内容..." autocomplete="off" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500">
-          <button type="submit" class="bg-purple-600 hover:bg-purple-500 px-5 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2">
-            <span>发送</span>
+      <div class="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-slate-800/80 border-t border-slate-700 shrink-0 relative">
+        <div id="emoji-panel" class="hidden absolute bottom-full left-3 right-3 sm:left-4 sm:right-4 mb-2 bg-slate-800 border border-slate-700 rounded-xl p-2 shadow-xl z-20 max-h-52 overflow-y-auto"></div>
+        <form id="send-form" class="flex gap-2 sm:gap-3">
+          <input type="text" id="message-input" placeholder="输入消息内容..." autocomplete="off" maxlength="8000" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg px-3 sm:px-4 py-2.5 text-base sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500">
+          <button type="button" id="btn-emoji" title="表情" class="bg-slate-900 hover:bg-slate-700 border border-slate-700 px-3 py-2.5 rounded-lg text-lg leading-none shrink-0">😊</button>
+          <button type="submit" class="bg-purple-600 hover:bg-purple-500 px-3 sm:px-5 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2 shrink-0">
+            <span class="hidden sm:inline">发送</span>
             <i class="fa-solid fa-paper-plane text-xs"></i>
           </button>
         </form>
       </div>
     </main>
-
   </div>
 
-  <!-- 配置页遮罩 -->
   <div id="config-overlay" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] overflow-y-auto" role="dialog" aria-labelledby="config-title">
       <div class="px-5 py-4 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-800 z-10">
         <div>
-          <h2 class="font-bold text-base">身份与密钥配置</h2>
+          <h2 id="config-title" class="font-bold text-base">身份与密钥配置</h2>
           <p class="text-xs text-slate-400 mt-0.5">自定义私钥 / 公钥，可重新申请</p>
         </div>
-        <button onclick="closeConfigPage()" class="text-slate-400 hover:text-white px-2 py-1">
+        <button type="button" id="btn-close-config" class="text-slate-400 hover:text-white px-2 py-1" title="关闭">
           <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
 
       <div class="p-5 space-y-5">
-        <!-- 使用方法 -->
         <div class="bg-slate-900/70 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 leading-relaxed space-y-1.5">
           <p class="font-medium text-slate-200"><i class="fa-solid fa-circle-info mr-1.5 text-purple-400"></i>使用方法</p>
           <ol class="list-decimal pl-4 space-y-1.5 text-slate-400">
@@ -155,38 +160,35 @@
           <p class="text-slate-500">密钥、频道、服务器列表会记在本机浏览器；聊天正文由 Relay 中继，连上后按订阅拉取。</p>
         </div>
 
-        <!-- 公钥 -->
         <div>
-          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">公钥 (npub / Hex)</label>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block" for="cfg-npub">公钥 (npub / Hex)</label>
           <div class="flex gap-2 mb-1.5">
             <input type="text" id="cfg-npub" readonly class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs flex-1 font-mono text-purple-300">
-            <button type="button" onclick="copyText(document.getElementById('cfg-npub').value, '公钥')" class="bg-slate-700 hover:bg-slate-600 px-3 rounded-lg text-xs"><i class="fa-regular fa-copy"></i></button>
+            <button type="button" id="btn-copy-cfg-npub" class="bg-slate-700 hover:bg-slate-600 px-3 rounded-lg text-xs" title="复制公钥"><i class="fa-regular fa-copy"></i></button>
           </div>
           <input type="text" id="cfg-pubkey-hex" readonly class="bg-slate-900/50 border border-slate-700/60 rounded-lg px-3 py-1.5 text-[11px] w-full font-mono text-slate-500" title="Hex 公钥">
           <p class="text-[11px] text-slate-500 mt-1">公钥由私钥推导，不可单独修改。导入或重新申请私钥后会自动更新。</p>
         </div>
 
-        <!-- 私钥 -->
         <div>
-          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">私钥 (nsec 或 Hex)</label>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block" for="cfg-privkey">私钥 (nsec 或 Hex)</label>
           <div class="flex gap-2 mb-1.5">
             <input type="password" id="cfg-privkey" autocomplete="off" spellcheck="false" placeholder="nsec1... 或 64 位 Hex" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs flex-1 font-mono text-slate-200 focus:outline-none focus:border-purple-500">
-            <button type="button" onclick="togglePrivVisibility()" id="btn-toggle-priv" class="bg-slate-700 hover:bg-slate-600 px-3 rounded-lg text-xs" title="显示/隐藏">
+            <button type="button" id="btn-toggle-priv" class="bg-slate-700 hover:bg-slate-600 px-3 rounded-lg text-xs" title="显示/隐藏">
               <i class="fa-regular fa-eye"></i>
             </button>
           </div>
           <p class="text-[11px] text-amber-400/80">私钥等同身份凭证，切勿泄露。保存后会写入 localStorage，本机可记忆复用。</p>
         </div>
 
-        <!-- 操作按钮 -->
         <div class="flex flex-wrap gap-2 pt-1">
-          <button onclick="saveCustomKeys()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-medium text-white transition flex items-center gap-2">
+          <button type="button" id="btn-save-keys" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-medium text-white transition flex items-center gap-2">
             <i class="fa-solid fa-floppy-disk"></i>保存自定义密钥
           </button>
-          <button onclick="regenerateKeys()" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-4 py-2 rounded-lg text-sm font-medium text-slate-200 transition flex items-center gap-2">
+          <button type="button" id="btn-regen-keys" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-4 py-2 rounded-lg text-sm font-medium text-slate-200 transition flex items-center gap-2">
             <i class="fa-solid fa-rotate"></i>重新申请密钥对
           </button>
-          <button onclick="fillCurrentKeys()" class="bg-slate-900 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm text-slate-400 transition">
+          <button type="button" id="btn-reset-keys" class="bg-slate-900 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm text-slate-400 transition">
             重置为当前已保存
           </button>
         </div>
@@ -194,508 +196,817 @@
     </div>
   </div>
 
+  <div id="toast-stack" class="fixed bottom-28 sm:bottom-24 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center w-[min(22rem,calc(100vw-2rem))] pointer-events-none"></div>
+
+  <div id="confirm-overlay" class="hidden fixed inset-0 z-[70] bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl p-5" role="dialog" aria-labelledby="confirm-text">
+      <p id="confirm-text" class="text-sm text-slate-200 leading-relaxed"></p>
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" id="confirm-cancel" class="bg-slate-900 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm text-slate-300 transition">取消</button>
+        <button type="button" id="confirm-ok" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-medium text-white transition">继续</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    let ws = null;
-    let myPrivKey = localStorage.getItem('nostr_privkey');
-    let myPubKey = '';
-    let myNpub = '';
+    (() => {
+      const NT = window.NostrTools;
+      const $ = (id) => document.getElementById(id);
+      const HEX64 = /^[0-9a-f]{64}$/;
+      const DOT = 'inline-block w-2.5 h-2.5 rounded-full shrink-0';
+      const STORAGE = {
+        priv: 'nostr_privkey',
+        channels: 'nostr_channels',
+        follows: 'nostr_follows',
+        relays: 'nostr_relays',
+        activeRelay: 'nostr_active_relay'
+      };
+      const DEFAULT_RELAYS = [
+        'wss://relay.nostrzh.org/',
+        'wss://relay.damus.io',
+        'wss://nos.lol'
+      ];
+      const EMOJIS = [
+        '😀','😁','😂','🤣','😊','😍','😘','😜','🤔','😎',
+        '😢','😭','😡','🤯','😴','🤗','🙄','😇','🥰','😅',
+        '👍','👎','👏','🙏','🤝','✌️','👋','💪','👀','🔥',
+        '❤️','💛','💚','💙','💜','🖤','💔','💯','✅','❌',
+        '🎉','🎊','🎁','🌟','⭐','🌈','☀️','🌙','⚡','💡',
+        '🐱','🐶','🍻','☕','🍕','🎵','📌','💬','🚀','✨'
+      ];
+      const MAX_MESSAGES = 300;
 
-    const DEFAULT_RELAYS = [
-      'wss://relay.nostrzh.org/',
-      'wss://relay.damus.io',
-      'wss://nos.lol'
-    ];
+      const statusText = $('relay-status-text');
+      const statusIndicator = $('status-indicator');
+      const chatMessages = $('chat-messages');
+      const overlay = $('config-overlay');
 
-    function normalizeRelayUrl(url) {
-      let u = (url || '').trim();
-      if (!u) return '';
-      if (!/^wss?:\/\//i.test(u)) u = 'wss://' + u;
-      return u;
-    }
+      const seenIds = new Set();
+      let ws = null;
+      let myPrivKey = '';
+      let myPubKey = '';
+      let myNpub = '';
+      let relays = [];
+      let activeRelay = '';
+      let channels = [];
+      let currentChannel = null;
+      let subscribedPubkeys = new Set();
+      let subId = newSubId();
 
-    function loadRelays() {
-      try {
-        const raw = JSON.parse(localStorage.getItem('nostr_relays') || 'null');
-        if (Array.isArray(raw) && raw.length > 0) {
-          return [...new Set(raw.map(normalizeRelayUrl).filter(Boolean))];
-        }
-      } catch (e) {}
-      return [...DEFAULT_RELAYS];
-    }
-
-    let relays = loadRelays();
-    let activeRelay = normalizeRelayUrl(localStorage.getItem('nostr_active_relay') || '') || relays[0];
-    if (!relays.includes(activeRelay)) {
-      relays.unshift(activeRelay);
-    }
-    localStorage.setItem('nostr_relays', JSON.stringify(relays));
-    localStorage.setItem('nostr_active_relay', activeRelay);
-
-    function applyIdentityFromPrivKey(privHex) {
-      myPrivKey = privHex;
-      myPubKey = window.NostrTools.getPublicKey(myPrivKey);
-      myNpub = window.NostrTools.nip19.npubEncode(myPubKey);
-      localStorage.setItem('nostr_privkey', myPrivKey);
-      document.getElementById('my-pubkey-display').innerText = myNpub.substring(0, 12) + '...';
-    }
-
-    function parsePrivateKeyInput(raw) {
-      const val = (raw || '').trim();
-      if (!val) throw new Error('私钥不能为空');
-      if (val.startsWith('nsec1')) {
-        const decoded = window.NostrTools.nip19.decode(val);
-        if (decoded.type !== 'nsec') throw new Error('不是有效的 nsec');
-        const data = decoded.data;
-        if (typeof data === 'string') return data.toLowerCase();
-        // 部分 nostr-tools 返回 Uint8Array
-        return Array.from(data).map(b => b.toString(16).padStart(2, '0')).join('');
-      }
-      if (/^[0-9a-fA-F]{64}$/.test(val)) return val.toLowerCase();
-      throw new Error('请输入 nsec1... 或 64 位 Hex 私钥');
-    }
-
-    if (!myPrivKey || !/^[0-9a-fA-F]{64}$/.test(myPrivKey)) {
-      myPrivKey = window.NostrTools.generatePrivateKey();
-      localStorage.setItem('nostr_privkey', myPrivKey);
-    }
-
-    try {
-      applyIdentityFromPrivKey(myPrivKey);
-    } catch (e) {
-      myPrivKey = window.NostrTools.generatePrivateKey();
-      applyIdentityFromPrivKey(myPrivKey);
-    }
-
-    let channels = JSON.parse(localStorage.getItem('nostr_channels')) || [
-      { id: 'public-lobby', name: '公共大厅' }
-    ];
-    let currentChannel = channels[0];
-
-    let subscribedPubkeys = new Set(JSON.parse(localStorage.getItem('nostr_follows') || '[]'));
-    let subId = 'sub-' + Math.random().toString(36).substr(2, 9);
-
-    renderRelays();
-    renderChannels();
-    renderFollowList();
-
-    function saveRelays() {
-      localStorage.setItem('nostr_relays', JSON.stringify(relays));
-      localStorage.setItem('nostr_active_relay', activeRelay);
-    }
-
-    function renderRelays() {
-      const listEl = document.getElementById('relay-list');
-      document.getElementById('current-relay-label').innerText = activeRelay;
-
-      listEl.innerHTML = relays.map((url, idx) => {
-        const selected = url === activeRelay;
-        return `
-          <div class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs ${selected ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' : 'text-slate-400 hover:bg-slate-700/50 border border-transparent'}">
-            <button onclick="selectRelay(${idx})" class="flex-1 text-left truncate font-mono" title="${escapeHtml(url)}">
-              <i class="fa-solid fa-server mr-1.5 ${selected ? 'text-purple-400' : 'text-slate-500'}"></i>${escapeHtml(url)}
-            </button>
-            ${relays.length > 1 ? `<button onclick="removeRelay(${idx})" class="text-slate-500 hover:text-rose-400 px-1 shrink-0" title="移除"><i class="fa-solid fa-xmark"></i></button>` : ''}
-          </div>
-        `;
-      }).join('');
-    }
-
-    window.selectRelay = function(idx) {
-      if (idx < 0 || idx >= relays.length) return;
-      activeRelay = relays[idx];
-      saveRelays();
-      renderRelays();
-    };
-
-    window.addRelay = function() {
-      const input = document.getElementById('new-relay-input');
-      const url = normalizeRelayUrl(input.value);
-      if (!url) {
-        alert('请输入有效的 wss:// 地址');
+      if (!NT) {
+        setStatus('nostr-tools 加载失败，请检查网络后刷新', 'bg-rose-500');
         return;
       }
-      if (relays.includes(url)) {
-        activeRelay = url;
+
+      boot();
+      bindUi();
+      renderRelays();
+      renderChannels();
+      renderFollowList();
+      resetChat('请先选择左侧服务器并点击「连接」，再加入频道');
+
+      function boot() {
+        relays = loadRelays();
+        activeRelay = normalizeRelayUrl(localStorage.getItem(STORAGE.activeRelay) || '') || relays[0];
+        if (!relays.includes(activeRelay)) relays.unshift(activeRelay);
+        saveRelays();
+
+        const storedPriv = (localStorage.getItem(STORAGE.priv) || '').trim().toLowerCase();
+        applyIdentity(HEX64.test(storedPriv) ? storedPriv : NT.generatePrivateKey());
+
+        channels = loadChannels();
+        currentChannel = channels[0];
+        subscribedPubkeys = new Set(loadFollows());
+      }
+
+      function bindUi() {
+        $('btn-connect').onclick = connectRelay;
+        $('btn-add-relay').onclick = addRelay;
+        $('btn-join-channel').onclick = joinOrSwitchChannel;
+        $('btn-add-follow').onclick = addSubKey;
+        $('btn-copy-npub').onclick = () => copyText(myNpub, '公钥');
+        $('btn-open-config').onclick = openConfigPage;
+        $('btn-close-config').onclick = closeConfigPage;
+        $('btn-copy-cfg-npub').onclick = () => copyText($('cfg-npub').value, '公钥');
+        $('btn-toggle-priv').onclick = togglePrivVisibility;
+        $('btn-save-keys').onclick = saveCustomKeys;
+        $('btn-regen-keys').onclick = regenerateKeys;
+        $('btn-open-sidebar').onclick = () => $('sidebar').classList.add('open');
+        $('btn-close-sidebar').onclick = closeMobileSidebar;
+        $('btn-reset-keys').onclick = fillCurrentKeys;
+        $('confirm-cancel').onclick = () => closeConfirm(false);
+        $('confirm-ok').onclick = () => closeConfirm(true);
+        $('send-form').onsubmit = sendMessage;
+        $('btn-emoji').onclick = (e) => {
+          e.stopPropagation();
+          $('emoji-panel').classList.toggle('hidden');
+        };
+        renderEmojiPanel();
+
+        onEnter($('new-relay-input'), addRelay);
+        onEnter($('new-channel-input'), joinOrSwitchChannel);
+        onEnter($('single-pubkey-input'), addSubKey);
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key !== 'Escape') return;
+          if (!$('confirm-overlay').classList.contains('hidden')) {
+            closeConfirm(false);
+            return;
+          }
+          if (!overlay.classList.contains('hidden')) {
+            closeConfigPage();
+            return;
+          }
+          if ($('sidebar').classList.contains('open')) {
+            closeMobileSidebar();
+            return;
+          }
+          hideEmojiPanel();
+        });
+        $('confirm-overlay').addEventListener('click', (e) => {
+          if (e.target === $('confirm-overlay')) closeConfirm(false);
+        });
+        document.addEventListener('click', (e) => {
+          const panel = $('emoji-panel');
+          if (panel.classList.contains('hidden')) return;
+          if (panel.contains(e.target)) return;
+          hideEmojiPanel();
+        });
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeConfigPage();
+        });
+      }
+
+      function onEnter(input, action) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            action();
+          }
+        });
+      }
+
+      function newSubId() {
+        return 'sub-' + Math.random().toString(36).slice(2, 11);
+      }
+
+      function loadJson(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return fallback;
+          return JSON.parse(raw);
+        } catch {
+          return fallback;
+        }
+      }
+
+      function normalizeRelayUrl(url) {
+        let value = (url || '').trim();
+        if (!value) return '';
+        if (!/^wss?:\/\//i.test(value)) value = 'wss://' + value;
+        try {
+          const parsed = new URL(value);
+          if (parsed.protocol !== 'wss:' && parsed.protocol !== 'ws:') return '';
+          if (!parsed.hostname) return '';
+          parsed.hash = '';
+          return parsed.toString();
+        } catch {
+          return '';
+        }
+      }
+
+      function loadRelays() {
+        const raw = loadJson(STORAGE.relays, null);
+        if (!Array.isArray(raw)) return [...DEFAULT_RELAYS];
+        const list = [...new Set(raw.map(normalizeRelayUrl).filter(Boolean))];
+        return list.length ? list : [...DEFAULT_RELAYS];
+      }
+
+      function loadChannels() {
+        const raw = loadJson(STORAGE.channels, null);
+        const list = Array.isArray(raw)
+          ? raw.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && item.id && item.name)
+          : [];
+        return list.length ? list : [{ id: 'public-lobby', name: '公共大厅' }];
+      }
+
+      function loadFollows() {
+        const raw = loadJson(STORAGE.follows, []);
+        if (!Array.isArray(raw)) return [];
+        return [...new Set(raw.map((item) => String(item || '').toLowerCase()).filter((item) => HEX64.test(item)))];
+      }
+
+      function saveRelays() {
+        localStorage.setItem(STORAGE.relays, JSON.stringify(relays));
+        localStorage.setItem(STORAGE.activeRelay, activeRelay);
+      }
+
+      function saveChannels() {
+        localStorage.setItem(STORAGE.channels, JSON.stringify(channels));
+      }
+
+      function saveFollows() {
+        localStorage.setItem(STORAGE.follows, JSON.stringify([...subscribedPubkeys]));
+      }
+
+      function makeChannelId(name) {
+        const slug = name.trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
+        if (slug) return slug;
+        let hash = 2166136261;
+        for (let i = 0; i < name.length; i++) {
+          hash ^= name.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return 'ch-' + (hash >>> 0).toString(36);
+      }
+
+      function setStatus(text, dotClass) {
+        statusText.textContent = text;
+        statusIndicator.className = DOT + ' ' + dotClass;
+      }
+
+      function applyIdentity(privHex) {
+        myPrivKey = privHex.toLowerCase();
+        myPubKey = NT.getPublicKey(myPrivKey);
+        myNpub = NT.nip19.npubEncode(myPubKey);
+        localStorage.setItem(STORAGE.priv, myPrivKey);
+        $('my-pubkey-display').textContent = myNpub.slice(0, 12) + '...';
+        $('my-pubkey-display').title = myNpub;
+      }
+
+      function bytesToHex(bytes) {
+        return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      function parsePrivateKeyInput(raw) {
+        const val = (raw || '').trim();
+        if (!val) throw new Error('私钥不能为空');
+        if (val.startsWith('nsec1')) {
+          const decoded = NT.nip19.decode(val);
+          if (decoded.type !== 'nsec') throw new Error('不是有效的 nsec');
+          const data = decoded.data;
+          const hex = typeof data === 'string' ? data : bytesToHex(data);
+          if (!HEX64.test(hex.toLowerCase())) throw new Error('nsec 解析结果无效');
+          return hex.toLowerCase();
+        }
+        if (HEX64.test(val.toLowerCase())) return val.toLowerCase();
+        throw new Error('请输入 nsec1... 或 64 位 Hex 私钥');
+      }
+
+      function parsePubkeyInput(raw) {
+        let val = (raw || '').trim();
+        if (!val) return '';
+        if (val.startsWith('npub1')) {
+          const decoded = NT.nip19.decode(val);
+          if (decoded.type !== 'npub') throw new Error('不是有效的 npub');
+          val = decoded.data;
+        }
+        val = String(val).toLowerCase();
+        if (!HEX64.test(val)) throw new Error('无效的公钥格式');
+        return val;
+      }
+
+      function shortNpub(hex, size) {
+        try {
+          return NT.nip19.npubEncode(hex).slice(0, size) + '...';
+        } catch {
+          return hex.slice(0, 8) + '...';
+        }
+      }
+
+      function icon(className) {
+        const node = document.createElement('i');
+        node.className = className;
+        return node;
+      }
+
+      function renderRelays() {
+        const list = $('relay-list');
+        list.replaceChildren();
+        $('current-relay-label').textContent = activeRelay || '—';
+
+        relays.forEach((url, idx) => {
+          const selected = url === activeRelay;
+          const row = document.createElement('div');
+          row.className = 'flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs ' + (selected
+            ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+            : 'text-slate-400 hover:bg-slate-700/50 border border-transparent');
+
+          const select = document.createElement('button');
+          select.type = 'button';
+          select.className = 'flex-1 text-left truncate font-mono';
+          select.title = url;
+          select.append(icon('fa-solid fa-server mr-1.5 ' + (selected ? 'text-purple-400' : 'text-slate-500')), url);
+          select.onclick = () => selectRelay(idx);
+          row.append(select);
+
+          if (relays.length > 1) {
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'text-slate-500 hover:text-rose-400 px-1 shrink-0';
+            remove.title = '移除';
+            remove.append(icon('fa-solid fa-xmark'));
+            remove.onclick = () => removeRelay(idx);
+            row.append(remove);
+          }
+          list.append(row);
+        });
+      }
+
+      function selectRelay(idx) {
+        if (!relays[idx] || relays[idx] === activeRelay) return;
+        activeRelay = relays[idx];
         saveRelays();
         renderRelays();
+      }
+
+      function addRelay() {
+        const input = $('new-relay-input');
+        const url = normalizeRelayUrl(input.value);
+        if (!url) {
+          toast('请输入有效的 ws:// 或 wss:// 地址', 'error');
+          return;
+        }
+        if (!relays.includes(url)) relays.push(url);
+        activeRelay = url;
         input.value = '';
-        return;
-      }
-      relays.push(url);
-      activeRelay = url;
-      saveRelays();
-      renderRelays();
-      input.value = '';
-    };
-
-    window.removeRelay = function(idx) {
-      if (relays.length <= 1) return;
-      const removed = relays[idx];
-      relays.splice(idx, 1);
-      if (activeRelay === removed) {
-        activeRelay = relays[0];
-      }
-      saveRelays();
-      renderRelays();
-    };
-
-    window.reconnectRelay = function() {
-      const statusText = document.getElementById('relay-status-text');
-      const statusIndicator = document.getElementById('status-indicator');
-      const relayUrlInput = activeRelay;
-
-      if (!relayUrlInput) {
-        alert('请先选择或添加一台服务器');
-        return;
+        saveRelays();
+        renderRelays();
       }
 
-      statusText.innerText = `正在连接...`;
-      statusIndicator.className = 'inline-block w-2.5 h-2.5 rounded-full bg-amber-500';
-
-      if (ws) {
-        try { ws.close(); } catch (e) {}
+      function removeRelay(idx) {
+        if (relays.length <= 1 || !relays[idx]) return;
+        const removed = relays.splice(idx, 1)[0];
+        if (activeRelay === removed) activeRelay = relays[0];
+        saveRelays();
+        renderRelays();
       }
 
-      ws = new WebSocket(relayUrlInput);
+      function connectRelay() {
+        if (!activeRelay) {
+          toast('请先选择或添加一台服务器', 'warn');
+          return;
+        }
 
-      ws.onopen = () => {
-        statusText.innerText = `已连接: ${relayUrlInput}`;
-        statusIndicator.className = 'inline-block w-2.5 h-2.5 rounded-full bg-emerald-500';
-        subscribeEvents();
-      };
+        if (ws) {
+          const old = ws;
+          ws = null;
+          old.onopen = old.onmessage = old.onerror = old.onclose = null;
+          try { old.close(); } catch { /* 旧连接已关闭 */ }
+        }
 
-      ws.onmessage = (event) => {
+        const url = activeRelay;
+        const socket = new WebSocket(url);
+        ws = socket;
+        setStatus('正在连接...', 'bg-amber-500');
+
+        socket.onopen = () => {
+          if (socket !== ws) return;
+          setStatus('已连接: ' + url, 'bg-emerald-500');
+          if (!chatMessages.querySelector('[data-msg]')) {
+            resetChat('已连接，正在拉取消息...');
+          }
+          subscribeEvents();
+        };
+
+        socket.onmessage = (event) => {
+          if (socket !== ws) return;
+          handleRelayMessage(event.data);
+        };
+
+        socket.onerror = () => {
+          if (socket !== ws) return;
+          setStatus('连接错误', 'bg-rose-500');
+        };
+
+        socket.onclose = () => {
+          if (socket !== ws) return;
+          setStatus('连接断开', 'bg-slate-500');
+        };
+      }
+
+      function handleRelayMessage(raw) {
+        let msg;
         try {
-          const msg = JSON.parse(event.data);
-          if (msg[0] === 'EVENT' && msg[2]) {
-            handleIncomingEvent(msg[2]);
-          } else if (msg[0] === 'NOTICE') {
-            console.warn("Relay 通知:", msg[1]);
-          } else if (msg[0] === 'OK') {
-            const [_, eventId, success, message] = msg;
-            if (!success) {
-              console.error("Relay 拒绝接收消息:", message);
-              alert("Relay 拒绝接收消息: " + message);
-            } else {
-              console.log("Relay 成功接收并保存消息！");
-            }
-          }
+          msg = JSON.parse(raw);
         } catch (err) {
-          console.error("解析消息出错:", err);
+          console.error('解析消息出错:', err);
+          return;
         }
-      };
+        if (!Array.isArray(msg)) return;
 
-      ws.onerror = () => {
-        statusText.innerText = `连接错误`;
-        statusIndicator.className = 'inline-block w-2.5 h-2.5 rounded-full bg-rose-500';
-      };
-
-      ws.onclose = () => {
-        statusText.innerText = `连接断开`;
-        statusIndicator.className = 'inline-block w-2.5 h-2.5 rounded-full bg-slate-500';
-      };
-    };
-
-    // —— 配置页 ——
-    window.openConfigPage = function() {
-      fillCurrentKeys();
-      document.getElementById('config-overlay').classList.remove('hidden');
-    };
-
-    window.closeConfigPage = function() {
-      document.getElementById('config-overlay').classList.add('hidden');
-    };
-
-    window.fillCurrentKeys = function() {
-      document.getElementById('cfg-npub').value = myNpub;
-      document.getElementById('cfg-pubkey-hex').value = myPubKey;
-      try {
-        document.getElementById('cfg-privkey').value = window.NostrTools.nip19.nsecEncode(myPrivKey);
-      } catch (e) {
-        document.getElementById('cfg-privkey').value = myPrivKey;
-      }
-      document.getElementById('cfg-privkey').type = 'password';
-      document.getElementById('btn-toggle-priv').innerHTML = '<i class="fa-regular fa-eye"></i>';
-    };
-
-    window.togglePrivVisibility = function() {
-      const el = document.getElementById('cfg-privkey');
-      const btn = document.getElementById('btn-toggle-priv');
-      if (el.type === 'password') {
-        el.type = 'text';
-        btn.innerHTML = '<i class="fa-regular fa-eye-slash"></i>';
-      } else {
-        el.type = 'password';
-        btn.innerHTML = '<i class="fa-regular fa-eye"></i>';
-      }
-    };
-
-    window.saveCustomKeys = function() {
-      try {
-        const privHex = parsePrivateKeyInput(document.getElementById('cfg-privkey').value);
-        // 校验能否导出公钥
-        window.NostrTools.getPublicKey(privHex);
-        applyIdentityFromPrivKey(privHex);
-        fillCurrentKeys();
-        alert('密钥已保存到 localStorage。频道、关注列表与服务器列表记忆保持不变。');
-      } catch (e) {
-        alert('保存失败: ' + (e.message || e));
-      }
-    };
-
-    window.regenerateKeys = function() {
-      if (!confirm('重新申请会生成全新身份，旧私钥将从本机配置中替换（频道/关注/服务器列表仍保留）。确定继续？')) {
-        return;
-      }
-      const newPriv = window.NostrTools.generatePrivateKey();
-      applyIdentityFromPrivKey(newPriv);
-      fillCurrentKeys();
-      alert('已生成新密钥对，并写入 localStorage。');
-    };
-
-    window.copyText = function(text, label) {
-      navigator.clipboard.writeText(text).then(() => {
-        alert((label || '内容') + '已复制');
-      }).catch(() => {
-        alert('复制失败，请手动选择复制');
-      });
-    };
-
-    function renderChannels() {
-      const listEl = document.getElementById('channel-list');
-      listEl.innerHTML = channels.map(c => `
-        <div class="flex items-center justify-between px-2 py-1.5 rounded-lg text-xs ${currentChannel.id === c.id ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30 font-medium' : 'text-slate-400 hover:bg-slate-700/50'}">
-          <button onclick="switchChannel('${c.id}')" class="flex-1 text-left truncate">
-            <i class="fa-solid fa-hashtag mr-1.5"></i>${escapeHtml(c.name)}
-          </button>
-          ${channels.length > 1 ? `<button onclick="removeChannel('${c.id}')" class="text-slate-500 hover:text-rose-400 ml-2 px-1"><i class="fa-solid fa-xmark"></i></button>` : ''}
-        </div>
-      `).join('');
-
-      document.getElementById('current-channel-title').innerText = '#' + currentChannel.name;
-      document.getElementById('current-channel-tag').innerText = `(ID: ${currentChannel.id})`;
-    }
-
-    window.joinOrSwitchChannel = function() {
-      const input = document.getElementById('new-channel-input');
-      const val = input.value.trim();
-      if (!val) return;
-
-      const channelId = val.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-      let existing = channels.find(c => c.id === channelId || c.name === val);
-      if (!existing) {
-        existing = { id: channelId, name: val };
-        channels.push(existing);
-        localStorage.setItem('nostr_channels', JSON.stringify(channels));
+        if (msg[0] === 'EVENT' && msg[2]) {
+          handleIncomingEvent(msg[2]);
+          return;
+        }
+        if (msg[0] === 'NOTICE') {
+          console.warn('Relay 通知:', msg[1]);
+          return;
+        }
+        if (msg[0] === 'OK' && msg[2] === false) {
+          console.error('Relay 拒绝接收消息:', msg[3]);
+          toast('Relay 拒绝接收消息: ' + msg[3], 'error');
+        }
       }
 
-      currentChannel = existing;
-      input.value = '';
-      renderChannels();
-      
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(["CLOSE", subId]));
-        subId = 'sub-' + Math.random().toString(36).substr(2, 9);
-        document.getElementById('chat-messages').innerHTML = '';
+      function isSocketOpen() {
+        return !!ws && ws.readyState === WebSocket.OPEN;
+      }
+
+      function resubscribe() {
+        if (!isSocketOpen()) return;
+        try { ws.send(JSON.stringify(['CLOSE', subId])); } catch { /* 连接刚断开 */ }
+        subId = newSubId();
         subscribeEvents();
       }
-    };
 
-    window.switchChannel = function(id) {
-      const c = channels.find(item => item.id === id);
-      if (!c) return;
-      currentChannel = c;
-      renderChannels();
-      document.getElementById('chat-messages').innerHTML = '';
-
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(["CLOSE", subId]));
-        subId = 'sub-' + Math.random().toString(36).substr(2, 9);
-        subscribeEvents();
+      function subscribeEvents() {
+        if (!isSocketOpen() || !currentChannel) return;
+        const filter = { kinds: [1], limit: 100 };
+        if (subscribedPubkeys.size > 0) filter.authors = [...subscribedPubkeys];
+        ws.send(JSON.stringify(['REQ', subId, filter]));
       }
-    };
 
-    window.removeChannel = function(id) {
-      if (channels.length <= 1) return;
-      channels = channels.filter(c => c.id !== id);
-      localStorage.setItem('nostr_channels', JSON.stringify(channels));
-      if (currentChannel.id === id) {
-        currentChannel = channels[0];
+      function eventChannelId(evt) {
+        if (!Array.isArray(evt.tags)) return 'public-lobby';
+        const tag = evt.tags.find((item) => item[0] === 't' && item[1]);
+        return tag ? String(tag[1]) : 'public-lobby';
       }
-      renderChannels();
-      window.switchChannel(currentChannel.id);
-    };
 
-    window.addSubKey = function() {
-      const input = document.getElementById('single-pubkey-input');
-      let val = input.value.trim();
-      if (!val) return;
-
-      try {
-        if (val.startsWith('npub1')) {
-          const decoded = window.NostrTools.nip19.decode(val);
-          if (decoded.type === 'npub') val = decoded.data;
+      function isTrustedEvent(evt) {
+        if (!evt || typeof evt.id !== 'string' || typeof evt.pubkey !== 'string' || typeof evt.content !== 'string') return false;
+        if (!HEX64.test(evt.id) || !HEX64.test(evt.pubkey)) return false;
+        try {
+          return typeof NT.verifySignature === 'function' ? NT.verifySignature(evt) : true;
+        } catch {
+          return false;
         }
-        if (/^[0-9a-fA-F]{64}$/.test(val)) {
-          subscribedPubkeys.add(val.toLowerCase());
-          localStorage.setItem('nostr_follows', JSON.stringify(Array.from(subscribedPubkeys)));
-          input.value = '';
-          renderFollowList();
+      }
 
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(["CLOSE", subId]));
-            subId = 'sub-' + Math.random().toString(36).substr(2, 9);
-            subscribeEvents();
+      function resetChat(hint) {
+        seenIds.clear();
+        chatMessages.replaceChildren();
+        const placeholder = document.createElement('p');
+        placeholder.dataset.placeholder = '1';
+        placeholder.className = 'text-slate-500 text-center py-10 text-sm';
+        placeholder.textContent = hint;
+        chatMessages.append(placeholder);
+      }
+
+      function handleIncomingEvent(evt) {
+        if (!currentChannel || !isTrustedEvent(evt)) return;
+        const msgChannelId = eventChannelId(evt);
+        if (currentChannel.id !== 'public-lobby' && msgChannelId !== currentChannel.id) return;
+        if (seenIds.has(evt.id)) return;
+        seenIds.add(evt.id);
+
+        const createdAt = Number(evt.created_at) || 0;
+        const isMe = evt.pubkey === myPubKey;
+        const row = document.createElement('div');
+        row.dataset.msg = evt.id;
+        row.dataset.ts = String(createdAt);
+        row.className = 'flex flex-col space-y-1 ' + (isMe ? 'items-end' : 'items-start');
+
+        const meta = document.createElement('div');
+        meta.className = 'flex items-center gap-2 text-xs text-slate-400';
+        const author = document.createElement('span');
+        author.className = 'font-mono ' + (isMe ? 'text-purple-400 font-bold' : 'text-slate-300');
+        author.textContent = isMe ? '我' : shortNpub(evt.pubkey, 10);
+        author.title = evt.pubkey;
+        const time = document.createElement('span');
+        time.className = 'text-[10px] text-slate-500';
+        time.textContent = createdAt ? new Date(createdAt * 1000).toLocaleTimeString() : '';
+        meta.append(author, time);
+
+        const bubble = document.createElement('div');
+        bubble.className = 'max-w-[85%] sm:max-w-xl px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap break-words ' + (isMe
+          ? 'bg-purple-600 text-white rounded-tr-none'
+          : 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700/60');
+        bubble.textContent = evt.content;
+        row.append(meta, bubble);
+
+        const nearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 96;
+        const placeholder = chatMessages.querySelector('[data-placeholder]');
+        if (placeholder) placeholder.remove();
+        insertByTime(row, createdAt);
+        while (chatMessages.querySelectorAll('[data-msg]').length > MAX_MESSAGES) {
+          const oldest = chatMessages.querySelector('[data-msg]');
+          if (!oldest) break;
+          seenIds.delete(oldest.dataset.msg);
+          oldest.remove();
+        }
+        if (nearBottom || isMe) chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function insertByTime(node, createdAt) {
+        const items = chatMessages.querySelectorAll('[data-msg]');
+        for (let i = items.length - 1; i >= 0; i--) {
+          if (Number(items[i].dataset.ts) <= createdAt) {
+            items[i].after(node);
+            return;
           }
-        } else {
-          alert('无效的公钥格式');
         }
-      } catch (e) {
-        alert('解析公钥失败');
-      }
-    };
-
-    window.removeSubKey = function(pk) {
-      subscribedPubkeys.delete(pk);
-      localStorage.setItem('nostr_follows', JSON.stringify(Array.from(subscribedPubkeys)));
-      renderFollowList();
-
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(["CLOSE", subId]));
-        subId = 'sub-' + Math.random().toString(36).substr(2, 9);
-        subscribeEvents();
-      }
-    };
-
-    function renderFollowList() {
-      const container = document.getElementById('following-list');
-      const countEl = document.getElementById('follow-count');
-      const modeText = document.getElementById('filter-mode-text');
-      countEl.innerText = `${subscribedPubkeys.size} 人`;
-
-      if (subscribedPubkeys.size === 0) {
-        container.innerHTML = `<p class="text-slate-500 italic text-center py-2">未限制单人（接收频道全员）</p>`;
-        modeText.innerText = "频道公开消息";
-        return;
+        chatMessages.prepend(node);
       }
 
-      modeText.innerText = `已过滤 ${subscribedPubkeys.size} 位指定用户`;
-      container.innerHTML = Array.from(subscribedPubkeys).map(pk => {
-        let shortPk = pk.substring(0, 8) + '...';
-        try { shortPk = window.NostrTools.nip19.npubEncode(pk).substring(0, 12) + '...'; } catch (e) {}
-        return `
-          <div class="flex justify-between items-center py-1 px-1.5 bg-slate-800/80 rounded">
-            <span class="truncate font-mono text-purple-300" title="${pk}">${shortPk}</span>
-            <button onclick="removeSubKey('${pk}')" class="text-rose-400 hover:text-rose-300 ml-1 px-1">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-        `;
-      }).join('');
-    }
+      function renderChannels() {
+        const list = $('channel-list');
+        list.replaceChildren();
+        channels.forEach((channel) => {
+          const active = channel.id === currentChannel.id;
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between px-2 py-1.5 rounded-lg text-xs ' + (active
+            ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30 font-medium'
+            : 'text-slate-400 hover:bg-slate-700/50');
 
-    // 订阅：不依赖 Relay 端标签索引，拉取最近消息由前端进行频道过滤
-    function subscribeEvents() {
-      if (!ws || ws.readyState !== WebSocket.OPEN || !currentChannel) return;
+          const select = document.createElement('button');
+          select.type = 'button';
+          select.className = 'flex-1 text-left truncate';
+          select.append(icon('fa-solid fa-hashtag mr-1.5'), channel.name);
+          select.onclick = () => switchChannel(channel.id);
+          row.append(select);
 
-      const filter = {
-        kinds: [1],
-        limit: 100
-      };
+          if (channels.length > 1) {
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'text-slate-500 hover:text-rose-400 ml-2 px-1';
+            remove.title = '移除';
+            remove.append(icon('fa-solid fa-xmark'));
+            remove.onclick = () => removeChannel(channel.id);
+            row.append(remove);
+          }
+          list.append(row);
+        });
 
-      if (subscribedPubkeys.size > 0) {
-        filter.authors = Array.from(subscribedPubkeys);
+        $('current-channel-title').textContent = '#' + currentChannel.name;
+        $('current-channel-tag').textContent = '(ID: ' + currentChannel.id + ')';
       }
 
-      ws.send(JSON.stringify(["REQ", subId, filter]));
-    }
-
-    // 接收事件并进行前端频道隔离
-    function handleIncomingEvent(evt) {
-      const tTag = evt.tags.find(tag => tag[0] === 't');
-      const msgChannelId = tTag ? tTag[1] : 'public-lobby';
-
-      if (currentChannel.id !== 'public-lobby' && msgChannelId !== currentChannel.id) {
-        return;
+      function closeMobileSidebar() {
+        $('sidebar').classList.remove('open');
       }
 
-      const chatMessages = document.getElementById('chat-messages');
-      if (document.getElementById(`msg-${evt.id}`)) return;
-
-      const isMe = evt.pubkey === myPubKey;
-      const timeStr = new Date(evt.created_at * 1000).toLocaleTimeString();
-      
-      let authorDisplay = evt.pubkey.substring(0, 8) + '...';
-      try { authorDisplay = window.NostrTools.nip19.npubEncode(evt.pubkey).substring(0, 10) + '...'; } catch (e) {}
-
-      const msgEl = document.createElement('div');
-      msgEl.id = `msg-${evt.id}`;
-      msgEl.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`;
-
-      msgEl.innerHTML = `
-        <div class="flex items-center gap-2 text-xs text-slate-400">
-          <span class="font-mono ${isMe ? 'text-purple-400 font-bold' : 'text-slate-300'}">${isMe ? '我' : authorDisplay}</span>
-          <span class="text-[10px] text-slate-500">${timeStr}</span>
-        </div>
-        <div class="max-w-xl px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'bg-purple-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700/60'} break-words">
-          ${escapeHtml(evt.content)}
-        </div>
-      `;
-
-      chatMessages.appendChild(msgEl);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    window.sendMessage = function(e) {
-      e.preventDefault();
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        alert('请先选择服务器并点击“连接”！');
-        return;
+      function showChannel(channel) {
+        closeMobileSidebar();
+        const changed = !currentChannel || currentChannel.id !== channel.id;
+        currentChannel = channel;
+        renderChannels();
+        if (!changed) return;
+        resetChat(isSocketOpen() ? '正在拉取消息...' : '请先连接服务器');
+        resubscribe();
       }
 
-      const input = document.getElementById('message-input');
-      const content = input.value.trim();
-      if (!content || !currentChannel) return;
+      function joinOrSwitchChannel() {
+        const input = $('new-channel-input');
+        const name = input.value.trim();
+        if (!name) return;
 
-      const unsignedEvent = {
-        kind: 1,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ["t", currentChannel.id]
-        ],
-        content: content
-      };
-
-      try {
-        const signedEvent = window.NostrTools.finishEvent(unsignedEvent, myPrivKey);
-
-        ws.send(JSON.stringify(["EVENT", signedEvent]));
-        handleIncomingEvent(signedEvent);
-        input.value = "";
-      } catch (err) {
-        console.error("生成或发送事件失败:", err);
-        alert("发送失败，请检查控制台日志。");
+        const channelId = makeChannelId(name);
+        let existing = channels.find((item) => item.id === channelId || item.name === name);
+        if (!existing) {
+          existing = { id: channelId, name };
+          channels.push(existing);
+          saveChannels();
+        }
+        input.value = '';
+        showChannel(existing);
       }
-    };
 
-    window.copyPubKey = function() {
-      navigator.clipboard.writeText(myNpub);
-      alert('您的 npub 公钥已复制到剪贴板！');
-    };
+      function switchChannel(id) {
+        const channel = channels.find((item) => item.id === id);
+        if (channel) showChannel(channel);
+      }
 
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, function(m) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
-      });
-    }
+      function removeChannel(id) {
+        if (channels.length <= 1) return;
+        const removingCurrent = currentChannel.id === id;
+        channels = channels.filter((item) => item.id !== id);
+        saveChannels();
+        if (removingCurrent) showChannel(channels[0]);
+        else renderChannels();
+      }
 
-    // Esc 关闭配置页
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeConfigPage();
-    });
-    document.getElementById('config-overlay').addEventListener('click', (e) => {
-      if (e.target.id === 'config-overlay') closeConfigPage();
-    });
+      function renderFollowList() {
+        const container = $('following-list');
+        const modeText = $('filter-mode-text');
+        $('follow-count').textContent = subscribedPubkeys.size + ' 人';
+        container.replaceChildren();
+
+        if (subscribedPubkeys.size === 0) {
+          const empty = document.createElement('p');
+          empty.className = 'text-slate-500 italic text-center py-2';
+          empty.textContent = '未限制单人（接收频道全员）';
+          container.append(empty);
+          modeText.textContent = '频道公开消息';
+          return;
+        }
+
+        modeText.textContent = '已过滤 ' + subscribedPubkeys.size + ' 位指定用户';
+        subscribedPubkeys.forEach((pk) => {
+          const row = document.createElement('div');
+          row.className = 'flex justify-between items-center py-1 px-1.5 bg-slate-800/80 rounded';
+          const label = document.createElement('span');
+          label.className = 'truncate font-mono text-purple-300';
+          label.title = pk;
+          label.textContent = shortNpub(pk, 12);
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'text-rose-400 hover:text-rose-300 ml-1 px-1';
+          remove.title = '移除';
+          remove.append(icon('fa-solid fa-xmark'));
+          remove.onclick = () => removeSubKey(pk);
+          row.append(label, remove);
+          container.append(row);
+        });
+      }
+
+      function addSubKey() {
+        const input = $('single-pubkey-input');
+        try {
+          const pubkey = parsePubkeyInput(input.value);
+          if (!pubkey) return;
+          subscribedPubkeys.add(pubkey);
+          input.value = '';
+          saveFollows();
+          renderFollowList();
+          resubscribe();
+        } catch (err) {
+          toast(err.message || '解析公钥失败', 'error');
+        }
+      }
+
+      function removeSubKey(pk) {
+        subscribedPubkeys.delete(pk);
+        saveFollows();
+        renderFollowList();
+        resubscribe();
+      }
+
+      function renderEmojiPanel() {
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-8 sm:grid-cols-10 gap-1';
+        EMOJIS.forEach((emoji) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'h-8 rounded hover:bg-slate-700 text-lg leading-none';
+          btn.textContent = emoji;
+          btn.onclick = () => insertEmoji(emoji);
+          grid.append(btn);
+        });
+        $('emoji-panel').replaceChildren(grid);
+      }
+
+      function hideEmojiPanel() {
+        $('emoji-panel').classList.add('hidden');
+      }
+
+      function insertEmoji(emoji) {
+        const input = $('message-input');
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? input.value.length;
+        const next = input.value.slice(0, start) + emoji + input.value.slice(end);
+        if (next.length > input.maxLength) return;
+        input.value = next;
+        const caret = start + emoji.length;
+        input.focus();
+        input.setSelectionRange(caret, caret);
+      }
+
+      function sendMessage(e) {
+        e.preventDefault();
+        hideEmojiPanel();
+        if (!isSocketOpen()) {
+          toast('请先选择服务器并点击「连接」', 'warn');
+          return;
+        }
+        const input = $('message-input');
+        const content = input.value.trim();
+        if (!content || !currentChannel) return;
+
+        try {
+          const signedEvent = NT.finishEvent({
+            kind: 1,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['t', currentChannel.id]],
+            content
+          }, myPrivKey);
+          ws.send(JSON.stringify(['EVENT', signedEvent]));
+          handleIncomingEvent(signedEvent);
+          input.value = '';
+        } catch (err) {
+          console.error('生成或发送事件失败:', err);
+          toast('发送失败，请检查控制台日志。', 'error');
+        }
+      }
+
+      function openConfigPage() {
+        fillCurrentKeys();
+        overlay.classList.remove('hidden');
+      }
+
+      function closeConfigPage() {
+        overlay.classList.add('hidden');
+      }
+
+      function fillCurrentKeys() {
+        $('cfg-npub').value = myNpub;
+        $('cfg-pubkey-hex').value = myPubKey;
+        try {
+          $('cfg-privkey').value = NT.nip19.nsecEncode(myPrivKey);
+        } catch {
+          $('cfg-privkey').value = myPrivKey;
+        }
+        $('cfg-privkey').type = 'password';
+        $('btn-toggle-priv').replaceChildren(icon('fa-regular fa-eye'));
+      }
+
+      function togglePrivVisibility() {
+        const input = $('cfg-privkey');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        $('btn-toggle-priv').replaceChildren(icon(show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'));
+      }
+
+      function saveCustomKeys() {
+        try {
+          const privHex = parsePrivateKeyInput($('cfg-privkey').value);
+          NT.getPublicKey(privHex);
+          applyIdentity(privHex);
+          fillCurrentKeys();
+          toast('密钥已保存。频道、关注列表与服务器列表保持不变。', 'ok');
+        } catch (err) {
+          toast('保存失败: ' + (err.message || err), 'error');
+        }
+      }
+
+      async function regenerateKeys() {
+        const ok = await askConfirm('重新申请会生成全新身份，旧私钥将从本机配置中替换。频道、关注、服务器列表仍保留。');
+        if (!ok) return;
+        applyIdentity(NT.generatePrivateKey());
+        fillCurrentKeys();
+        toast('已生成新密钥对，并写入本机。', 'ok');
+      }
+
+      async function copyText(text, label) {
+        if (!text) return;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.left = '-9999px';
+            document.body.append(area);
+            area.select();
+            const ok = document.execCommand('copy');
+            area.remove();
+            if (!ok) throw new Error('copy failed');
+          }
+          toast((label || '内容') + '已复制', 'ok');
+        } catch {
+          toast('复制失败，请手动选择复制', 'error');
+        }
+      }
+
+      function toast(message, tone) {
+        const tones = {
+          ok: 'border-emerald-500/40 text-emerald-50',
+          warn: 'border-amber-500/40 text-amber-50',
+          error: 'border-rose-500/40 text-rose-50',
+          info: 'border-slate-600 text-slate-100'
+        };
+        const item = document.createElement('div');
+        item.className = 'pointer-events-auto bg-slate-800/95 backdrop-blur border rounded-xl px-3.5 py-2.5 text-sm leading-relaxed shadow-lg transition-opacity duration-200 ' + (tones[tone] || tones.info);
+        item.textContent = message;
+        item.onclick = () => item.remove();
+        const stack = $('toast-stack');
+        stack.append(item);
+        while (stack.children.length > 3) stack.firstElementChild.remove();
+        setTimeout(() => {
+          item.classList.add('opacity-0');
+          setTimeout(() => item.remove(), 200);
+        }, 2800);
+      }
+
+      let confirmResolver = null;
+
+      function askConfirm(message) {
+        $('confirm-text').textContent = message;
+        $('confirm-overlay').classList.remove('hidden');
+        return new Promise((resolve) => {
+          confirmResolver = resolve;
+        });
+      }
+
+      function closeConfirm(result) {
+        $('confirm-overlay').classList.add('hidden');
+        const resolve = confirmResolver;
+        confirmResolver = null;
+        if (resolve) resolve(result);
+      }
+    })();
   </script>
 </body>
 </html>
